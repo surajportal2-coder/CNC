@@ -32,9 +32,9 @@ def bomber():
     
     try:
         cl.login_by_sessionid(cfg["sessionid"])
-        log("LOGIN SUCCESS")
+        log("✅ LOGIN SUCCESS")
     except Exception as e:
-        log(f"LOGIN FAILED: {str(e)[:80]}")
+        log(f"❌ LOGIN FAILED → {str(e)[:80]}")
         return
 
     sent_in_cycle = 0
@@ -44,28 +44,30 @@ def bomber():
             cl.direct_send(msg, thread_ids=[cfg["thread_id"]])
             sent_in_cycle += 1
             state["sent"] += 1
-            log(f"SENT #{state['sent']}")
+            log(f"📨 SENT #{state['sent']}")
 
-            if sent_in_cycle >= cfg["cycle"] and cfg["group_name"]:
-                new_name = f"{cfg['group_name']} → {datetime.now().strftime('%I:%M:%S %p')}"
-                try:
-                    cl.direct_thread_change_title(cfg["thread_id"], new_name)
-                    log("NAME CHANGE SUCCESS")
-                except:
+            # ================== BREAK + NAME CHANGE LOGIC ==================
+            if sent_in_cycle >= cfg["cycle"]:
+                if cfg["group_name"]:
+                    new_name = f"{cfg['group_name']} → {datetime.now().strftime('%I:%M:%S %p')}"
                     try:
-                        cl.direct_thread_update_group_name(cfg["thread_id"], new_name)
-                        log("NAME CHANGE SUCCESS")
+                        cl.direct_thread_change_title(cfg["thread_id"], new_name)
+                        log(f"💠 NAME CHANGE SUCCESS → {new_name}")
                     except:
-                        log("NAME CHANGE FAILED")
+                        try:
+                            cl.direct_thread_update_group_name(cfg["thread_id"], new_name)
+                            log(f"💠 NAME CHANGE SUCCESS → {new_name}")
+                        except:
+                            log("⚠ NAME CHANGE FAILED (spam continues)")
                 
-                log(f"BREAK {cfg['break_sec']}s")
+                log(f"⏳ BREAK {cfg['break_sec']} SECONDS")
                 time.sleep(cfg["break_sec"])
-                sent_in_cycle = 0
+                sent_in_cycle = 0   # Reset cycle
 
             time.sleep(cfg["delay"] + random.uniform(-2, 3))
 
         except Exception as e:
-            log(f"SEND FAILED: {str(e)[:60]}")
+            log(f"⚠ SEND FAILED → {str(e)[:60]}")
             time.sleep(15)
 
 @app.route("/")
@@ -78,12 +80,12 @@ def start():
     state["running"] = False
     time.sleep(0.5)
 
-    state = {"running": True, "sent": 0, "logs": ["BOT STARTED"], "start_time": time.time()}
+    state = {"running": True, "sent": 0, "logs": ["🚀 BOT STARTED"], "start_time": time.time()}
 
     cfg["sessionid"] = request.form.get("sessionid", "").strip()
     cfg["thread_id"] = int(request.form["thread_id"])
     
-    # Single full message logic
+    # Single full message (pura textarea ek hi message)
     raw_text = request.form["messages"].strip()
     cfg["messages"] = [raw_text] if raw_text else []
 
@@ -96,10 +98,10 @@ def start():
     log("BOT RUNNING")
     return jsonify({"ok": True})
 
-@app.route("/stop", methods=["POST"])   # ← Yeh line important thi
+@app.route("/stop", methods=["POST"])
 def stop():
     state["running"] = False
-    log("STOPPED BY USER")
+    log("⛔ STOPPED BY USER")
     return jsonify({"ok": True})
 
 @app.route("/status")
