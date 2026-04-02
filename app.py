@@ -46,7 +46,6 @@ def bomber():
             state["sent"] += 1
             log(f"SENT #{state['sent']}")
 
-            # Name Change Logic
             if sent_in_cycle >= cfg["cycle"] and cfg["group_name"]:
                 new_name = f"{cfg['group_name']} → {datetime.now().strftime('%I:%M:%S %p')}"
                 try:
@@ -84,7 +83,7 @@ def start():
     cfg["sessionid"] = request.form.get("sessionid", "").strip()
     cfg["thread_id"] = int(request.form["thread_id"])
     
-    # Single full message (no splitting)
+    # Single full message logic
     raw_text = request.form["messages"].strip()
     cfg["messages"] = [raw_text] if raw_text else []
 
@@ -97,10 +96,10 @@ def start():
     log("BOT RUNNING")
     return jsonify({"ok": True})
 
-@app.route("/stop")
+@app.route("/stop", methods=["POST"])   # ← Yeh line important thi
 def stop():
     state["running"] = False
-    log("STOPPED")
+    log("STOPPED BY USER")
     return jsonify({"ok": True})
 
 @app.route("/status")
