@@ -7,10 +7,18 @@ import os
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "sujal_hawk_final_2025"
+app.secret_key = "sujal_final"
 
 state = {"running": False, "sent": 0, "logs": [], "start_time": None}
-cfg = {"sessionid": "", "thread_id": 0, "messages": [], "group_name": "", "delay": 25, "cycle": 35, "break_sec": 40}
+cfg = {
+    "sessionid": "",
+    "thread_id": 0,
+    "messages": [],
+    "group_name": "",
+    "delay": 25,
+    "cycle": 35,
+    "break_sec": 40
+}
 
 def log(msg):
     entry = f"[{time.strftime('%H:%M:%S')}] {msg}"
@@ -24,44 +32,41 @@ def bomber():
     
     try:
         cl.login_by_sessionid(cfg["sessionid"])
-        log("✅ LOGIN SUCCESS — BOT STARTED")
+        log("LOGIN SUCCESS")
     except Exception as e:
-        log(f"❌ LOGIN FAILED → {str(e)[:80]}")
+        log(f"LOGIN FAILED: {str(e)[:80]}")
         return
 
     sent_in_cycle = 0
     while state["running"]:
         try:
-            # Send Message
             msg = random.choice(cfg["messages"])
             cl.direct_send(msg, thread_ids=[cfg["thread_id"]])
             sent_in_cycle += 1
             state["sent"] += 1
-            log(f"📨 SENT #{state['sent']} → {msg[:50]}...")
+            log(f"SENT #{state['sent']}")
 
-            # Name Change + Break Logic
-            if sent_in_cycle >= cfg["cycle"]:
-                if cfg["group_name"]:
-                    new_name = f"{cfg['group_name']} → {datetime.now().strftime('%I:%M:%S %p')}"
+            # Name Change Logic
+            if sent_in_cycle >= cfg["cycle"] and cfg["group_name"]:
+                new_name = f"{cfg['group_name']} → {datetime.now().strftime('%I:%M:%S %p')}"
+                try:
+                    cl.direct_thread_change_title(cfg["thread_id"], new_name)
+                    log("NAME CHANGE SUCCESS")
+                except:
                     try:
-                        cl.direct_thread_change_title(cfg["thread_id"], new_name)
-                        log(f"💠 NAME CHANGE SUCCESS → {new_name}")
-                    except Exception as e:
-                        try:
-                            cl.direct_thread_update_group_name(cfg["thread_id"], new_name)
-                            log(f"💠 NAME CHANGE SUCCESS → {new_name}")
-                        except Exception as e2:
-                            log(f"⚠ NAME CHANGE FAILED (spam continues) → {str(e2)[:70]}")
+                        cl.direct_thread_update_group_name(cfg["thread_id"], new_name)
+                        log("NAME CHANGE SUCCESS")
+                    except:
+                        log("NAME CHANGE FAILED")
                 
-                log(f"⏳ TAKING BREAK FOR {cfg['break_sec']} SECONDS...")
+                log(f"BREAK {cfg['break_sec']}s")
                 time.sleep(cfg["break_sec"])
-                sent_in_cycle = 0   # Reset cycle
+                sent_in_cycle = 0
 
-            # Normal delay between messages
             time.sleep(cfg["delay"] + random.uniform(-2, 3))
 
         except Exception as e:
-            log(f"⚠ SEND FAILED → {str(e)[:60]}")
+            log(f"SEND FAILED: {str(e)[:60]}")
             time.sleep(15)
 
 @app.route("/")
@@ -72,26 +77,30 @@ def index():
 def start():
     global state
     state["running"] = False
-    time.sleep(1)
+    time.sleep(0.5)
 
-    state = {"running": True, "sent": 0, "logs": ["🚀 BOT STARTED"], "start_time": time.time()}
+    state = {"running": True, "sent": 0, "logs": ["BOT STARTED"], "start_time": time.time()}
 
     cfg["sessionid"] = request.form.get("sessionid", "").strip()
     cfg["thread_id"] = int(request.form["thread_id"])
-    cfg["messages"] = [m.strip() for m in request.form["messages"].split("\n") if m.strip()]
+    
+    # Single full message (no splitting)
+    raw_text = request.form["messages"].strip()
+    cfg["messages"] = [raw_text] if raw_text else []
+
     cfg["group_name"] = request.form.get("group_name", "").strip()
     cfg["delay"] = float(request.form.get("delay", "25"))
     cfg["cycle"] = int(request.form.get("cycle", "35"))
     cfg["break_sec"] = int(request.form.get("break_sec", "40"))
 
     threading.Thread(target=bomber, daemon=True).start()
-    log("THREAD STARTED — BOT IS RUNNING")
+    log("BOT RUNNING")
     return jsonify({"ok": True})
 
 @app.route("/stop")
 def stop():
     state["running"] = False
-    log("⛔ STOPPED BY USER")
+    log("STOPPED")
     return jsonify({"ok": True})
 
 @app.route("/status")
@@ -102,6 +111,7 @@ def status():
         h, r = divmod(t, 3600)
         m, s = divmod(r, 60)
         uptime = f"{h:02d}:{m:02d}:{s:02d}"
+    
     return jsonify({
         "running": state["running"],
         "sent": state["sent"],
